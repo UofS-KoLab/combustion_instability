@@ -91,7 +91,7 @@ if (-not $Features) {
 
 
 $python_executable = "C:\Programs\Anaconda3\envs\hidrogen\python.exe"
-$python_script = "C:\Users\qpw475\Documents\combustion_instability\src\train_ftt_model.py"
+$python_script = "C:\Users\qpw475\Documents\combustion_instability\src\train_fft_model.py"
 
 # Construct the command to run the Python script
 & $python_executable $python_script --data_root $dataRoot --project_root $projectRoot --stability_file $stabilityFile --window_size $windowSize --approach $approach --duration_sample_ms $duration_sample_ms --lstm_units1 $LSTMUnits1 --lstm_units2 $LSTMUnits2 --dropout_rate1 $DropoutRate1 --dropout_rate2 $DropoutRate2 --l2_regularizer1 $L2Regularizer1 --l2_regularizer2 $L2Regularizer2 --learning_rate $LearningRate --epochs $Epochs --validation_split $ValidationSplit --patience $Patience --test_size $TestSize --seed $Seed --features $Features
