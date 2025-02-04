@@ -1,9 +1,10 @@
 param (
     [string]$dataRoot,
     [string]$projectRoot,
-    [string]$windowSize,
+    [int]$windowSize,
     [string]$stabilityFile,
-    [string]$approach
+    [string]$approach,
+    [int]$duration_sample_ms
 )
 
 # Assign default values to inputFolder and rmsFile if they are not provided
@@ -20,7 +21,11 @@ if (-not $stabilityFile) {
 }
 
 if (-not $windowSize) {
-    $windowSize = "100"
+    $windowSize = 100
+}
+
+if (-not $duration_sample_ms) {
+    $duration_sample_ms = 12000
 }
 
 if (-not $approach) {
@@ -33,4 +38,4 @@ $python_executable = "C:\Programs\Anaconda3\envs\hidrogen\python.exe"
 $python_script = "C:\Users\qpw475\Documents\combustion_instability\src\load_and_preprocess_data.py"
 
 # Construct the command to run the Python script
-& $python_executable $python_script --data_root $dataRoot --project_root $projectRoot --stability_file $stabilityFile --window_size $windowSize --approach $approach
+& $python_executable $python_script --data_root $dataRoot --project_root $projectRoot --stability_file $stabilityFile --window_size $windowSize --approach $approach --duration_sample_ms $duration_sample_ms

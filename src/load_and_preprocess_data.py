@@ -19,9 +19,10 @@ def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Process combustion instability data.")
     parser.add_argument("--data_root", type=str, required=True, help="Path to the main data directory.")
-    parser.add_argument("--project_root", type=str, required=True, help="Path to the main data directory.")
+    parser.add_argument("--project_root", type=str, required=True, help="Path to the main directory.")
     parser.add_argument("--stability_file", type=str, required=True, help="Path to the stability labeling CSV file.")
-    parser.add_argument("--window_size", type=str, required=True, help="Size of the time series window (e.g., 100 for 100ms).")
+    parser.add_argument("--duration_sample_ms", type=int, required=True, help="Total duration of the sample of the time series in ms.")
+    parser.add_argument("--window_size", type=int, required=True, help="Size of the time series window in ms (e.g., 100 for 100ms).")
     parser.add_argument("--approach", type=str, required=True, choices=["time_series", "fft"], help="Approach: 'time_series' or 'fft'.")
     return parser.parse_args()
 
@@ -49,13 +50,21 @@ def notch_filter(pressure, PMT, samp_freq=10000, notch_freq=60.0, quality_factor
     return signal.filtfilt(b_notch, a_notch, pressure), signal.filtfilt(b_notch, a_notch, PMT)
 
 
-def get_data(cache_file, filenames, stability_label_dict, window_size):
+def get_data(cache_file, filenames, stability_label_dict, window_size, duration_sample_ms):
     """Load and preprocess data, or load from cache if available."""
+
     NUM_SEGMENTS_MIN = 120  # Minimum number of segments
     NUM_SEGMENTS_MAX = 120  # Maximum number of segments
     NUM_SEGMENTS_INC = 1    # Segment increment
     data = []
     outputsALLr = []
+
+    SEGMENT_NUM= duration_sample_ms / window_size
+    amount_of_samples=int(len(filenames)*SEGMENT_NUM)
+    total_points=120000
+    amount_points_in_segment=int(total_points/SEGMENT_NUM)
+    logging.info(f"The inputs_all shape should be: {amount_of_samples}, {amount_points_in_segment}, 2")
+
     if os.path.exists(cache_file):
         logging.info("Loading data from cache...")
         data = load(cache_file)
@@ -67,11 +76,13 @@ def get_data(cache_file, filenames, stability_label_dict, window_size):
         for i, file_path in enumerate(filenames):
             logging.info(f"Processing file #{i}: {file_path}")
             file_name = file_path.split('\\')[-1].replace(".csv", "")
+
             if file_name not in stability_label_dict:
                 logging.info(f"Cannot find the filename in the label dictionary... Skipping {file_name}")
                 continue
-            
             label = stability_label_dict[file_name]
+
+
             with open(file_path, 'r') as f:
                 first_line = f.readline().strip()
             
@@ -150,7 +161,7 @@ if __name__ == "__main__":
     # Load and preprocess data
     stability_label_dict = load_stability_labels(args.stability_file)
     filenames = get_filenames(args.data_root)
-    inputsALL, outputsALL_label = get_data(cache_file, filenames, stability_label_dict, args.window_size)
+    inputsALL, outputsALL_label = get_data(cache_file, filenames, stability_label_dict, args.window_size, args.duration_sample_ms)
     
     # # Log the shapes of the processed data
     logging.info(f"Processed data shapes - Inputs: {inputsALL.shape}, Outputs: {outputsALL_label.shape}")
