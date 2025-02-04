@@ -29,7 +29,7 @@ if (-not $duration_sample_ms) {
 }
 
 if (-not $approach) {
-    $approach = "fft"
+    $approach = "time_series"
 }
 
 

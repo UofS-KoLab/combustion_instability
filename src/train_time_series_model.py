@@ -14,28 +14,44 @@ from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Bidirectional, LSTM, Dense, Activation, Conv2D, Flatten, Dropout, BatchNormalization, Add, Concatenate, MaxPooling1D, AveragePooling1D #, LocallyConnected2D
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from tensorflow.keras.regularizers import l2
-# from tensorflow.keras.optimizers.legacy import Adam, RMSprop
-from tensorflow.keras.optimizers import Adam, RMSprop
+from tensorflow.keras.optimizers.legacy import Adam, RMSprop #for windows
+#from tensorflow.keras.optimizers import Adam, RMSprop #for linux
 from tensorflow.keras import mixed_precision
 
-policy = mixed_precision.Policy('mixed_float16')
-mixed_precision.set_global_policy(policy)
-
+#For windows
+# Check if TensorFlow detects a GPU
 gpus = tf.config.list_physical_devices('GPU')
-print(gpus)
+
 if gpus:
-    try:
-        for gpu in gpus:
-            tf.config.set_logical_device_configuration(
-                gpu,
-                [tf.config.LogicalDeviceConfiguration(memory_limit=1024 * 8)]  # Adjust memory limit if needed
-            )
-        logical_gpus = tf.config.list_logical_devices('GPU')
-        print(f"{len(gpus)} Physical GPUs, {len(logical_gpus)} Logical GPUs configured.")
-    except RuntimeError as e:
-        print(f"GPU Configuration Error: {e}")
+    print("GPU is available!")
+    print("Details of GPU(s):")
+    for gpu in gpus:
+        print(gpu)
 else:
-    print("No GPUs found, using CPU instead.")
+    print("No GPU detected. TensorFlow is using the CPU.")
+# Enable multi-threading
+tf.config.threading.set_intra_op_parallelism_threads(8)
+tf.config.threading.set_inter_op_parallelism_threads(8)
+
+#For linux 
+# policy = mixed_precision.Policy('mixed_float16')
+# mixed_precision.set_global_policy(policy)
+
+# gpus = tf.config.list_physical_devices('GPU')
+# print(gpus)
+# if gpus:
+#     try:
+#         for gpu in gpus:
+#             tf.config.set_logical_device_configuration(
+#                 gpu,
+#                 [tf.config.LogicalDeviceConfiguration(memory_limit=1024 * 8)]  # Adjust memory limit if needed
+#             )
+#         logical_gpus = tf.config.list_logical_devices('GPU')
+#         print(f"{len(gpus)} Physical GPUs, {len(logical_gpus)} Logical GPUs configured.")
+#     except RuntimeError as e:
+#         print(f"GPU Configuration Error: {e}")
+# else:
+#     print("No GPUs found, using CPU instead.")
     
 
 # Configure logging
@@ -45,6 +61,9 @@ def setup_logging(log_file):
         level=logging.INFO,  # Log level
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
+
+# Disable unnecessary logging
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TensorFlow logs
 
 def parse_arguments():
     """Parse command-line arguments."""
@@ -90,11 +109,8 @@ def get_cache_file_path(project_root, window_size, approach):
 def get_data(cache_file, filenames, stability_label_dict):
     data=[]
     if os.path.exists(cache_file):
-        print("inside the get data")
         logging.info("Loading data from cache...")
         data = load(cache_file)
-        # print(data)
-        print(len(data))
     else:
         print("No data to load.")
     
@@ -112,7 +128,7 @@ def get_data(cache_file, filenames, stability_label_dict):
     return inputsALL,outputsALL
 
 def My_Model(time_steps, features, n_batch, n_regularizer_k, n_regularizer_r, n_dropout, n_depth, n_optimizer):
-    with tf.device('/GPU:0'):
+    # with tf.device('/GPU:0'):
         # Input layer
         cvt_in = tf.keras.Input(shape=(time_steps, features), batch_size=n_batch)
         
@@ -201,23 +217,22 @@ if __name__ == "__main__":
     X_val = inputsALL[-val_size:]
     y_val = outputsALL[-val_size:]
 
-    # # Convert data to tf.data.Dataset
-    # train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
-    # train_dataset = train_dataset.batch(n_batch).prefetch(tf.data.AUTOTUNE)
+# Convert data to tf.data.Dataset for efficient loading
+    train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
+    train_dataset = train_dataset.batch(n_batch).prefetch(tf.data.AUTOTUNE).cache()  # Cache data for faster access
 
-    # val_dataset = tf.data.Dataset.from_tensor_slices((X_val, y_val))
-    # val_dataset = val_dataset.batch(n_batch).prefetch(tf.data.AUTOTUNE)
-
-    # # Train the model
-    # for epoch in range(13):
-    #     model.fit(train_dataset, epochs=1, validation_data=val_dataset, class_weight=class_weight)
-    #     model.reset_states()  # Reset states after each epoch
-
+    val_dataset = tf.data.Dataset.from_tensor_slices((X_val, y_val))
+    val_dataset = val_dataset.batch(n_batch).prefetch(tf.data.AUTOTUNE).cache()
 
     # Train the model
     for epoch in range(13):
-        model.fit(X_train, y_train, batch_size=n_batch, epochs=1, validation_data=(X_val, y_val), class_weight=class_weight)
+        model.fit(train_dataset, epochs=1, validation_data=val_dataset, class_weight=class_weight)
         model.reset_states()  # Reset states after each epoch
+
+    # # Train the model
+    # for epoch in range(13):
+    #     model.fit(X_train, y_train, batch_size=n_batch, epochs=1, validation_data=(X_val, y_val), class_weight=class_weight)
+    #     model.reset_states()  # Reset states after each epoch
 
     
     # Save the model as .h5
