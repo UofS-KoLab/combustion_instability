@@ -69,7 +69,7 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
         logging.info("Loading data from cache...")
         data = load(cache_file)
     else:
-        inputs_all = np.empty((12480, 1000, 2))  # Initialize array for input data
+        inputs_all = np.empty((12480, 3000, 2))  # Initialize array for input data
         outputs_all = []
         k = 0
 
