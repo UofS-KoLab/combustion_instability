@@ -104,7 +104,7 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
         data = load(cache_file)
     else:
         # inputs_all = np.empty((12480, 1000, 2))  # Initialize array for input data
-        inputs_all = np.empty((12480, 51, 7))
+        inputs_all = np.empty((12480, 51, 10))
         outputs_all = []
         k = 0
 
@@ -156,6 +156,9 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
                         inputs_all[k, j, 4] = magnitude_pmt[j]
                         inputs_all[k, j, 5] = power_pmt[j]
                         inputs_all[k, j, 6] = phase_pmt[j]
+                        inputs_all[k, j, 7] = magnitude_pressure[j]*magnitude_pmt[j]
+                        inputs_all[k, j, 8] = power_pressure[j]*power_pmt[j]
+                        inputs_all[k, j, 9] = phase_pressure[j]-phase_pmt[j]
                     k += 1
 
                     outputsALLr.append(label)
