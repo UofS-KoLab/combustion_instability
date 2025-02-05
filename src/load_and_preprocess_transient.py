@@ -53,8 +53,8 @@ def notch_filter(pressure, PMT, samp_freq=10000, notch_freq=60.0, quality_factor
 def get_data(cache_file, filenames, stability_label_dict, window_size, duration_sample_ms):
     """Load and preprocess data, or load from cache if available."""
 
-    NUM_SEGMENTS_MIN = 240  # Minimum number of segments
-    NUM_SEGMENTS_MAX = 240  # Maximum number of segments
+    NUM_SEGMENTS_MIN = 48  # Minimum number of segments
+    NUM_SEGMENTS_MAX = 48  # Maximum number of segments
     NUM_SEGMENTS_INC = 1    # Segment increment
     data = []
     outputsALLr = []
@@ -69,7 +69,7 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
         logging.info("Loading data from cache...")
         data = load(cache_file)
     else:
-        inputs_all = np.empty((480, 1000, 2))  # Initialize array for input data
+        inputs_all = np.empty((96, 5000, 2))  # Initialize array for input data
         outputs_all = []
         k = 0
 
@@ -110,9 +110,9 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
 
             logging.info(f"Processed {file_name} with {len(time)} time samples.")
         
-        outputsALLr=["Stable"]*193
-        outputsALLr.extend(["Unstable"]*103)
-        outputsALLr.extend(["Satle"]*184)
+        outputsALLr=["Stable"]*39
+        outputsALLr.extend(["Unstable"]*20)
+        outputsALLr.extend(["Stable"]*37)
         outputs_all = np.array(outputsALLr)
         dump((inputs_all, outputs_all), cache_file)
         data = (inputs_all, outputs_all)
