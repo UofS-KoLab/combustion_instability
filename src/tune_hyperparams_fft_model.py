@@ -8,6 +8,8 @@ from joblib import dump, load
 import logging
 import matplotlib.pyplot as plt
 
+import keras_tuner as kt
+
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.model_selection import train_test_split
 
@@ -77,16 +79,16 @@ def parse_arguments():
     parser.add_argument("--duration_sample_ms", type=int, required=True, help="Total duration of the sample of the time series in ms.")
     parser.add_argument("--window_size", type=int, required=True, help="Size of the time series window in ms (e.g., 100 for 100ms).")
     parser.add_argument("--approach", type=str, required=True, choices=["time_series", "fft"], help="Approach: 'time_series' or 'fft'.")
-    parser.add_argument('--lstm_units1', type=int, default=160, help="Number of units in the first LSTM layer.")
-    parser.add_argument('--lstm_units2', type=int, default=192, help="Number of units in the second LSTM layer.")
-    parser.add_argument('--dropout_rate1', type=float, default=0.3, help="Dropout rate for the first LSTM layer.")
-    parser.add_argument('--dropout_rate2', type=float, default=0.0, help="Dropout rate for the second LSTM layer.")
-    parser.add_argument('--l2_regularizer1', type=float, default=0.0099, help="L2 regularization for the first LSTM layer.")
-    parser.add_argument('--l2_regularizer2', type=float, default=0.0004, help="L2 regularization for the second LSTM layer.")
-    parser.add_argument('--learning_rate', type=float, default=0.008, help="Learning rate for the optimizer.")
-    parser.add_argument('--epochs', type=int, default=150, help="Number of epochs to train the model.")
+    # parser.add_argument('--lstm_units1', type=int, default=160, help="Number of units in the first LSTM layer.")
+    # parser.add_argument('--lstm_units2', type=int, default=192, help="Number of units in the second LSTM layer.")
+    # parser.add_argument('--dropout_rate1', type=float, default=0.3, help="Dropout rate for the first LSTM layer.")
+    # parser.add_argument('--dropout_rate2', type=float, default=0.0, help="Dropout rate for the second LSTM layer.")
+    # parser.add_argument('--l2_regularizer1', type=float, default=0.0099, help="L2 regularization for the first LSTM layer.")
+    # parser.add_argument('--l2_regularizer2', type=float, default=0.0004, help="L2 regularization for the second LSTM layer.")
+    # parser.add_argument('--learning_rate', type=float, default=0.008, help="Learning rate for the optimizer.")
+    # parser.add_argument('--epochs', type=int, default=150, help="Number of epochs to train the model.")
     parser.add_argument('--validation_split', type=float, default=0.2, help="Validation split ratio.")
-    parser.add_argument('--patience', type=int, default=3, help="Number of epochs with no improvement after which training will be stopped.")
+    # parser.add_argument('--patience', type=int, default=3, help="Number of epochs with no improvement after which training will be stopped.")
     parser.add_argument('--test_size', type=float, default=0.2, help="Proportion of the dataset to include in the test split.")
     parser.add_argument('--seed', type=int, default=42, help="Random seed for reproducibility.")
     parser.add_argument('--features', type=str, default="all", help='Comma-separated list of feature indices to select, or "all" to use all features.')
@@ -150,25 +152,31 @@ def compute_class_weights(y_train):
     class_weights_dict = {0: 0.1, 1: 0.9}
     return class_weights_dict
 
-def create_lstm_model(input_shape, output_shape, lstm_units1=160, lstm_units2=192, dropout_rate1=0.3, dropout_rate2=0.0, 
-                      l2_regularizer1=0.0099, l2_regularizer2=0.0004):
+def build_model(hp):
+    input_shape = (X_train.shape[1], X_train.shape[2])
+    output_shape = len(np.unique(y_train))
+    
     model = Sequential([
-        LSTM(lstm_units1, input_shape=input_shape, return_sequences=True, kernel_regularizer=l2(l2_regularizer1)),
-        Dropout(dropout_rate1),  # Dropout for regularization
-        LSTM(lstm_units2, kernel_regularizer=l2(l2_regularizer2)),
-        Dropout(dropout_rate2),  # Dropout for regularization
+        LSTM(hp.Int('lstm_units1', min_value=64, max_value=256, step=32),
+             input_shape=input_shape, return_sequences=True, 
+             kernel_regularizer=l2(hp.Float('l2_regularizer1', 1e-4, 1e-2, sampling='LOG'))),
+        Dropout(hp.Float('dropout_rate1', 0.0, 0.5, step=0.1)),
+        
+        LSTM(hp.Int('lstm_units2', min_value=64, max_value=256, step=32),
+             kernel_regularizer=l2(hp.Float('l2_regularizer2', 1e-4, 1e-2, sampling='LOG'))),
+        Dropout(hp.Float('dropout_rate2', 0.0, 0.5, step=0.1)),
+        
         Dense(output_shape, activation='softmax')
     ])
+    
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(hp.Float('learning_rate', 1e-4, 1e-2, sampling='LOG')),
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
+    )
+    
     return model
 
-def compile_and_fit_model(model, X_train, y_train, X_test, y_test, learning_rate=0.008, epochs=150, validation_split=0.2, patience=3, class_weights=None):
-    callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience)
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate), 
-                  loss='sparse_categorical_crossentropy', 
-                  metrics=['accuracy'])
-    history = model.fit(X_train, y_train, epochs=epochs, validation_data=(X_test, y_test),
-                        callbacks=[callback], class_weight=class_weights)
-    return history
 
 def save_model(model, output_dir):
     if not os.path.exists(output_dir):
@@ -220,32 +228,27 @@ if __name__ == "__main__":
     class_weights_dict = compute_class_weights(y_train)
     print(class_weights_dict)
 
-    # Create and compile the model
-    model = create_lstm_model(input_shape, output_shape, args.lstm_units1, args.lstm_units2, 
-                              args.dropout_rate1, args.dropout_rate2, 
-                              args.l2_regularizer1, args.l2_regularizer2)
-    history = compile_and_fit_model(model, X_train, y_train, X_test, y_test, args.learning_rate, args.epochs, 
-                                    args.validation_split, args.patience, class_weights=class_weights_dict)
-    # Create a new folder for the current run
-    output_dir = create_incremented_folder(os.path.join(args.project_root, "model", args.approach, f"window_{args.window_size}ms"), "model")
-    os.makedirs(output_dir, exist_ok=True)  # Create the folder if it doesn't exist
+    # Initialize tuner
+    tuner = kt.Hyperband(
+        build_model,
+        objective='val_accuracy',
+        max_epochs=50,
+        factor=3,
+        directory='tuning_results',
+        project_name='lstm_hyperparameter_tuning'
+    )
 
-    # Save the training parameters and metrics
-    training_params = {
-        'lstm_units1': args.lstm_units1,
-        'lstm_units2': args.lstm_units2,
-        'dropout_rate1': args.dropout_rate1,
-        'dropout_rate2': args.dropout_rate2,
-        'l2_regularizer1': args.l2_regularizer1,
-        'l2_regularizer2': args.l2_regularizer2,
-        'learning_rate': args.learning_rate,
-        'epochs': args.epochs,
-        'validation_split': args.validation_split,
-        'patience': args.patience,
-        'class_weights': class_weights_dict,
-        'selected_features': selected_features,
-        'history': history.history
-    }
-    save_training_params(training_params, output_dir)
-    # Save the model
-    save_model(model, output_dir)
+    # Compute class weights
+    class_weights = compute_class_weights(y_train)
+
+    # Perform search
+    tuner.search(X_train, y_train, epochs=30, validation_data=(X_test, y_test), 
+                class_weight=class_weights, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3)])
+
+    # Get the best hyperparameters
+    best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+    print("Best Hyperparameters:")
+    for hp in best_hps.values:
+        print(f"{hp}: {best_hps.get(hp)}")
+
+    print(best_hps)
