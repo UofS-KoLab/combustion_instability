@@ -7,6 +7,7 @@ from joblib import dump, load
 import logging
 from scipy.fft import fft
 from scipy.signal import iirnotch, filtfilt
+import matplotlib.pyplot as plt
 
 # Configure logging
 def setup_logging(log_file):
@@ -61,8 +62,8 @@ def notch_filter(pressure, samp_freq=10000, notch_freq=60.0, quality_factor=20.0
     """Apply a notch filter to remove noise from the signals."""
     b_notch, a_notch = signal.iirnotch(notch_freq, quality_factor, samp_freq)
     notch_filtered_pressure = signal.filtfilt(b_notch, a_notch, pressure)
-    pressure_filtered=denoise_pressure(notch_filtered_pressure, 0.0003)
-    return pressure_filtered
+    # pressure_filtered=denoise_pressure(notch_filtered_pressure, 0.0003)
+    return notch_filtered_pressure
 
 def compute_fft(time_series, sampling_rate, max_freq=500):
     """Computes FFT and returns frequencies, magnitudes, powers, and phases."""
@@ -79,6 +80,7 @@ def compute_fft(time_series, sampling_rate, max_freq=500):
     positive_fft_result = positive_fft_result[mask]
     
     magnitude = np.abs(positive_fft_result)
+    magnitude = np.round(magnitude, 5)
     power = magnitude ** 2
     phase = np.angle(positive_fft_result)
 
@@ -87,8 +89,8 @@ def compute_fft(time_series, sampling_rate, max_freq=500):
 def get_data(cache_file, filenames, stability_label_dict, window_size, duration_sample_ms):
     """Load and preprocess data, or load from cache if available."""
 
-    NUM_SEGMENTS_MIN = 120  # Minimum number of segments
-    NUM_SEGMENTS_MAX = 120  # Maximum number of segments
+    NUM_SEGMENTS_MIN = 24  # Minimum number of segments
+    NUM_SEGMENTS_MAX = 24  # Maximum number of segments
     NUM_SEGMENTS_INC = 1    # Segment increment
     data = []
     outputsALLr = []
@@ -103,12 +105,14 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
         logging.info("Loading data from cache...")
         data = load(cache_file)
     else:
-        # inputs_all = np.empty((12480, 1000, 2))  # Initialize array for input data
-        inputs_all = np.empty((12480, 51, 10))
+        # inputs_all = np.empty((12480,4160,2496 51,16, 2))  # Initialize array for input data
+        inputs_all = np.empty((2496, 251, 10))
         outputs_all = []
         k = 0
 
         for i, file_path in enumerate(filenames):
+        # for i in range(2):
+            # file_path = filenames[i]
             logging.info(f"Processing file #{i}: {file_path}")
             file_name = file_path.split('\\')[-1].replace(".csv", "")
 
@@ -130,24 +134,24 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
             time = acoustic_data['time'].to_numpy()
 
             pressure, PMT = notch_filter(acoustic_data['p3']), notch_filter(acoustic_data['pmt'])
-
+           
             for total_segments in range(NUM_SEGMENTS_MIN, NUM_SEGMENTS_MAX + 1, NUM_SEGMENTS_INC):
                 time_segment_size = int(len(time) / total_segments)
                 pressure_segment_size = int(len(pressure) / total_segments)
                 PMT_segment_size = int(len(PMT) / total_segments)
                 sampling_rate = time[1] - time[0]
                 fs = 1 / sampling_rate
-
+                
                 logging.info(f"time_segment_size: {time_segment_size}, {pressure_segment_size}, {PMT_segment_size}")
 
                 for current_segment in range(1, total_segments + 1):
                     time_s = time[(current_segment - 1) * time_segment_size:current_segment * time_segment_size]
                     pressure_s = pressure[(current_segment - 1) * pressure_segment_size:current_segment * pressure_segment_size]
                     PMT_s = PMT[(current_segment - 1) * PMT_segment_size:current_segment * PMT_segment_size]
-
+                    
                     freqs_pressure, magnitude_pressure, power_pressure, phase_pressure = compute_fft(pressure_s, 0.0001)
                     freqs_pmt, magnitude_pmt, power_pmt, phase_pmt = compute_fft(PMT_s, 0.0001)
-                    
+                    print(len(freqs_pressure))
                     for j in range(len(freqs_pressure)):
                         inputs_all[k, j, 0] = freqs_pressure[j]
                         inputs_all[k, j, 1] = magnitude_pressure[j]
@@ -211,5 +215,10 @@ if __name__ == "__main__":
     filenames = get_filenames(args.data_root)
     inputsALL, outputsALL_label = get_data(cache_file, filenames, stability_label_dict, args.window_size, args.duration_sample_ms)
     
+    print(inputsALL[0][0][1])
+    print(inputsALL[0][1][1])
+    print(inputsALL[0][2][1])
+    print(inputsALL[0][3][1])
+
     # # Log the shapes of the processed data
     logging.info(f"Processed data shapes - Inputs: {inputsALL.shape}, Outputs: {outputsALL_label.shape}")

@@ -21,7 +21,7 @@ if (-not $stabilityFile) {
 }
 
 if (-not $windowSize) {
-    $windowSize = 100
+    $windowSize = 500
 }
 
 if (-not $duration_sample_ms) {

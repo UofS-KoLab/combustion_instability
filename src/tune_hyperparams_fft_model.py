@@ -149,22 +149,34 @@ def get_data(cache_file, filenames, stability_label_dict):
 def compute_class_weights(y_train):
     class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(y_train), y=y_train)
     class_weights_dict = dict(enumerate(class_weights))
-    class_weights_dict = {0: 0.1, 1: 0.9}
+    # class_weights_dict = {0: 0.1, 1: 0.9}
     return class_weights_dict
 
 def build_model(hp):
     input_shape = (X_train.shape[1], X_train.shape[2])
     output_shape = len(np.unique(y_train))
     
+    # model = Sequential([
+    #     LSTM(hp.Int('lstm_units1', min_value=64, max_value=256, step=32),
+    #          input_shape=input_shape, return_sequences=True, 
+    #          kernel_regularizer=l2(hp.Float('l2_regularizer1', 1e-4, 1e-2, sampling='LOG'))),
+    #     Dropout(hp.Float('dropout_rate1', 0.0, 0.5, step=0.1)),
+        
+    #     LSTM(hp.Int('lstm_units2', min_value=64, max_value=256, step=32),
+    #          kernel_regularizer=l2(hp.Float('l2_regularizer2', 1e-4, 1e-2, sampling='LOG'))),
+    #     Dropout(hp.Float('dropout_rate2', 0.0, 0.5, step=0.1)),
+        
+    #     Dense(output_shape, activation='softmax')
+    # ])
     model = Sequential([
-        LSTM(hp.Int('lstm_units1', min_value=64, max_value=256, step=32),
+        LSTM(160,
              input_shape=input_shape, return_sequences=True, 
              kernel_regularizer=l2(hp.Float('l2_regularizer1', 1e-4, 1e-2, sampling='LOG'))),
-        Dropout(hp.Float('dropout_rate1', 0.0, 0.5, step=0.1)),
+        Dropout(0.3),
         
-        LSTM(hp.Int('lstm_units2', min_value=64, max_value=256, step=32),
+        LSTM(192,
              kernel_regularizer=l2(hp.Float('l2_regularizer2', 1e-4, 1e-2, sampling='LOG'))),
-        Dropout(hp.Float('dropout_rate2', 0.0, 0.5, step=0.1)),
+        Dropout(0.0),
         
         Dense(output_shape, activation='softmax')
     ])
@@ -181,7 +193,7 @@ def build_model(hp):
 def save_model(model, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    model.save(os.path.join(output_dir, 'lstm_model.h5'))
+    model.save(os.path.join(output_dir, 'lstm_model_fft.keras'))
 
 def save_training_params(params, output_dir):
     os.makedirs(output_dir, exist_ok=True)
@@ -234,7 +246,7 @@ if __name__ == "__main__":
         objective='val_accuracy',
         max_epochs=50,
         factor=3,
-        directory='tuning_results',
+        directory='tuning_results2',
         project_name='lstm_hyperparameter_tuning'
     )
 

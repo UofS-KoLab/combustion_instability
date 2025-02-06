@@ -142,12 +142,14 @@ def get_data(cache_file, filenames, stability_label_dict):
     outputsALL = np.array([label_mapping[label] for label in outputsALL_label], dtype=np.int32)
     print(inputsALL.shape)
     print(outputsALL.shape)
+    print(outputsALL)
     return inputsALL,outputsALL
+
 
 def compute_class_weights(y_train):
     class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(y_train), y=y_train)
     class_weights_dict = dict(enumerate(class_weights))
-    class_weights_dict = {0: 0.1, 1: 0.9}
+    # class_weights_dict = {0: 0.1, 1: 0.9}
     return class_weights_dict
 
 def create_lstm_model(input_shape, output_shape, lstm_units1=160, lstm_units2=192, dropout_rate1=0.3, dropout_rate2=0.0, 
@@ -169,11 +171,37 @@ def compile_and_fit_model(model, X_train, y_train, X_test, y_test, learning_rate
     history = model.fit(X_train, y_train, epochs=epochs, validation_data=(X_test, y_test),
                         callbacks=[callback], class_weight=class_weights)
     return history
+# def compute_class_weights(y_train):
+#     class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(y_train), y=y_train)
+#     class_weights_dict = dict(enumerate(class_weights))
+#     class_weights_dict = {0: 0.1, 1: 0.9}
+#     return class_weights_dict
+
+# def create_lstm_model(input_shape, output_shape, lstm_units1=160, lstm_units2=192, dropout_rate1=0.3, dropout_rate2=0.0, 
+#                       l2_regularizer1=0.0099, l2_regularizer2=0.0004):
+#     model = Sequential([
+#         LSTM(lstm_units1, input_shape=input_shape, return_sequences=True, kernel_regularizer=l2(l2_regularizer1)),
+#         Dropout(dropout_rate1),  # Dropout for regularization
+#         LSTM(lstm_units2, kernel_regularizer=l2(l2_regularizer2)),
+#         Dropout(dropout_rate2),  # Dropout for regularization
+#         Dense(output_shape, activation='softmax')
+#         # Dense(1, activation='sigmoid')
+#     ])
+#     return model
+
+# def compile_and_fit_model(model, X_train, y_train, X_test, y_test, learning_rate=0.008, epochs=150, validation_split=0.2, patience=3, class_weights=None):
+#     callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience)
+#     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate), 
+#                   loss='sparse_categorical_crossentropy', 
+#                   metrics=['accuracy'])
+#     history = model.fit(X_train, y_train, epochs=epochs, validation_data=(X_test, y_test),
+#                         callbacks=[callback], class_weight=class_weights)
+#     return history
 
 def save_model(model, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    model.save(os.path.join(output_dir, 'lstm_model.h5'))
+    model.save(os.path.join(output_dir, 'lstm_model_fft.keras'))
 
 def save_training_params(params, output_dir):
     os.makedirs(output_dir, exist_ok=True)
@@ -204,7 +232,9 @@ if __name__ == "__main__":
     # Ensure reproducibility
     np.random.seed(args.seed)
     tf.random.set_seed(args.seed)
-    
+    print(inputsALL[0][0][1])
+    print(inputsALL[0][1][1])
+    print(inputsALL[0][2][1])
     # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(inputsALL, outputsALL, test_size=args.test_size, random_state=args.seed)
     
@@ -215,7 +245,7 @@ if __name__ == "__main__":
 
     input_shape = X_train.shape[1:]  # Shape of each sample (timesteps, features)
     output_shape = len(np.unique(outputsALL))  # Assuming binary classification (stable or unstable)
-
+    print(input_shape, output_shape)
     # Compute class weights
     class_weights_dict = compute_class_weights(y_train)
     print(class_weights_dict)

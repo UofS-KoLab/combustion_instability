@@ -34,7 +34,7 @@ if (-not $stabilityFile) {
 }
 
 if (-not $windowSize) {
-    $windowSize = 100
+    $windowSize = 300
 }
 
 if (-not $duration_sample_ms) {
@@ -59,16 +59,21 @@ if (-not $DropoutRate2) {
 }
 if (-not $L2Regularizer1) {
     # $L2Regularizer1 = 0.0099
-    $L2Regularizer1 = 0.00045
+    # $L2Regularizer1 = 0.00045
+    # $L2Regularizer1 = 0.006237
+    $L2Regularizer1 = 0.008
     
 }
 if (-not $L2Regularizer2) {
     # $L2Regularizer2 = 0.0004
-    $L2Regularizer2 = 0.0012
+    # $L2Regularizer2 = 0.0012
+    # $L2Regularizer2 = 0.000953
+    $L2Regularizer2 = 0.003
 }
 if (-not $LearningRate) {
-    # $LearningRate = 0.008
-    $LearningRate = 0.002
+    $LearningRate = 0.008
+    # $LearningRate = 0.002
+    # $LearningRate = 0.0003477
 }
 if (-not $Epochs) {
     $Epochs = 150
@@ -86,7 +91,7 @@ if (-not $Seed) {
     $Seed = 42
 }
 if (-not $Features) {
-    $Features = "2,7,9"
+    $Features = "7,9"
 }
 
 

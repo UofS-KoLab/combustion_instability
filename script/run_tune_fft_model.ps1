@@ -26,7 +26,7 @@ if (-not $stabilityFile) {
 }
 
 if (-not $windowSize) {
-    $windowSize = 100
+    $windowSize = 300
 }
 
 if (-not $duration_sample_ms) {
@@ -50,7 +50,7 @@ if (-not $Seed) {
 }
 
 if (-not $Features) {
-    $Features = "2,7,9"
+    $Features = "7,9"
 }
 
 $python_executable = "C:\Programs\Anaconda3\envs\hidrogen\python.exe"
