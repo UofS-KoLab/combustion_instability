@@ -7,16 +7,7 @@ from joblib import dump, load
 import logging
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
-
-
 import tensorflow as tf
-
-from tensorflow import keras
-from tensorflow.keras import Sequential, Model
-from tensorflow.keras.layers import Bidirectional, LSTM, Dense, Activation, Conv2D, Flatten, Dropout, BatchNormalization, Add, Concatenate, MaxPooling1D, AveragePooling1D #, LocallyConnected2D
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
-from tensorflow.keras.regularizers import l2
-from tensorflow.keras.optimizers.legacy import Adam
 from tensorflow.keras.models import load_model
 
 # Configure logging
@@ -27,43 +18,18 @@ def setup_logging(log_file):
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
-
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Process combustion instability data.")
     parser.add_argument("--data_root", type=str, required=True, help="Path to the main data directory.")
     parser.add_argument("--project_root", type=str, required=True, help="Path to the main directory.")
-    parser.add_argument("--stability_file", type=str, required=True, help="Path to the stability labeling CSV file.")
-    parser.add_argument("--duration_sample_ms", type=int, required=True, help="Total duration of the sample of the time series in ms.")
+    parser.add_argument("--type_fuel", type=str, required=True, help="Path to the stability labeling CSV file.")
+    parser.add_argument("--model_name", type=str, required=True, help="Path to the stability labeling CSV file.")
     parser.add_argument("--window_size", type=int, required=True, help="Size of the time series window in ms (e.g., 100 for 100ms).")
     parser.add_argument("--approach", type=str, required=True, choices=["time_series", "fft"], help="Approach: 'time_series' or 'fft'.")
     return parser.parse_args()
 
-
-def load_stability_labels(stability_filename):
-    """Load stability labels from a CSV file."""
-    stability_pd = pd.read_csv(stability_filename)
-    logging.info(f"Found {len(stability_pd['Name'])} records in the labeling file.")
-    
-    stability_label_dict = {
-        f"{row['Name']}": row['Stability']
-        for _, row in stability_pd.iterrows()
-    }
-    return stability_label_dict
-
-
-def get_filenames(data_root):
-    """Get all Excel files in the specified directory."""
-    return [os.path.join(data_root, f) for f in os.listdir(data_root) if f.endswith(".csv")]
-
-
-def notch_filter(pressure, PMT, samp_freq=10000, notch_freq=60.0, quality_factor=20.0):
-    """Apply a notch filter to remove noise from the signals."""
-    b_notch, a_notch = signal.iirnotch(notch_freq, quality_factor, samp_freq)
-    return signal.filtfilt(b_notch, a_notch, pressure), signal.filtfilt(b_notch, a_notch, PMT)
-
-
-def get_data(cache_file, filenames, stability_label_dict, window_size, duration_sample_ms):
+def get_data(cache_file):
     """Load and preprocess data, or load from cache if available."""
     data=[]
     if os.path.exists(cache_file):
@@ -92,12 +58,10 @@ def get_cache_file_path(project_root, window_size, approach):
     # Create the folder path
     folder_path = os.path.join(project_root,"data", approach, "transient",f"window_{window_size}ms")
     os.makedirs(folder_path, exist_ok=True)  # Create the folder if it doesn't exist
-    
     # Generate the cache file path
     cache_file = os.path.join(folder_path, "data.pkl")
     
     return cache_file
-
 
 def get_log_file_path(project_root, window_size, approach):
     """Generate the log file path based on window size and approach."""
@@ -113,8 +77,6 @@ def get_log_file_path(project_root, window_size, approach):
 
 if __name__ == "__main__":
     args = parse_arguments()
-    print(tf.__version__)
-    print(keras.__version__)
 
     # Generate the log file path and set up logging
     log_file = get_log_file_path(args.project_root, args.window_size, args.approach)
@@ -125,36 +87,18 @@ if __name__ == "__main__":
     
     # Load and preprocess data
     stability_label_dict=""
-    transient_path=os.path.join(args.project_root,"data","raw","transient","hidrogen")
+    transient_path=os.path.join(args.project_root,"data","raw","transient",args.type_fuel) #"hidrogen"
     filenames = [os.path.join(transient_path,"open_25kW_600slpm_70%to80%.csv"), os.path.join(transient_path,"open_25kW_600slpm_80%to70%.csv")]
-    inputsALL, outputsALL_label = get_data(cache_file, filenames, stability_label_dict, args.window_size, args.duration_sample_ms)
+    inputsALL, outputsALL_label = get_data(cache_file)
     # # Log the shapes of the processed data
     logging.info(f"Processed data shapes - Inputs: {inputsALL.shape}, Outputs: {outputsALL_label.shape}")
 
 
-    model_path=os.path.join(args.project_root,"model",args.approach,f"window_{args.window_size}ms","model_4","lstm_model_ts.keras")
+    model_path=os.path.join(args.project_root,"model",args.approach,f"window_{args.window_size}ms",args.model_name,"lstm_model_ts.keras")
     model = load_model(model_path)
-    # model = load_model(model_path, custom_objects={'InputLayer': tf.keras.layers.InputLayer})
-    
-    
-    # Evaluate the model
-    # loss, accuracy = model.evaluate(inputsALL, outputsALL_label, verbose=2)
-    
-    # Log the evaluation results
-    # logging.info(f"Model evaluation - Loss: {loss}, Accuracy: {accuracy}")
-    # print(f"Model evaluation - Loss: {loss}, Accuracy: {accuracy}")
-    # model = tf.keras.models.load_model(model_path)
-    # model = load_model(model_path, custom_objects={'InputLayer': tf.keras.layers.InputLayer})
-    
-
-    # with tf.keras.utils.custom_object_scope({'InputLayer': tf.keras.layers.InputLayer}):
-    #     model = load_model(model_path)
-    # predictions = model.predict(inputsALL)
-    # predictions = (predictions > 0.5).astype(int) 
-
 
     predictions=[]
-    cache_prediction_file=os.path.join(args.project_root,"model",args.approach,f"window_{args.window_size}ms","model_4","predictions_transient.pkl")
+    cache_prediction_file=os.path.join(args.project_root,"model",args.approach,f"window_{args.window_size}ms",args.model_name,"predictions_transient.pkl")
     if os.path.exists(cache_prediction_file):
         logging.info("Loading data from cache...")
         predictions = load(cache_prediction_file)
@@ -177,7 +121,6 @@ if __name__ == "__main__":
     print(f"Confusion Matrix:\n{cm}")
     
     # Plot confusion matrix
-    # disp = ConfusionMatrixDisplay(confusion_matrix=cm)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Stable', 'Unstable'])
     disp.plot(cmap='Blues')
 
@@ -189,8 +132,7 @@ if __name__ == "__main__":
         os.makedirs(plot_path)
 
     # Save the plot
-    plt.savefig(plot_path + f"/confusion_matrix_transient_{args.window_size}ms_model_4.png", bbox_inches='tight', pad_inches=0.1)
-
+    plt.savefig(plot_path + f"/confusion_matrix_transient_{args.window_size}ms_{args.model_name}.png", bbox_inches='tight', pad_inches=0.1)
     plt.show()
 
     # Number of points
@@ -207,5 +149,5 @@ if __name__ == "__main__":
     # plt.ylabel('Prediction')
     # plt.title('Model Predictions')
     plt.grid(True)
-    plt.savefig(os.path.join(plot_path + f"/prediction_transient_{args.window_size}ms_model_4.png"), bbox_inches='tight', pad_inches=0.1)
+    plt.savefig(os.path.join(plot_path + f"/prediction_transient_{args.window_size}ms_{args.model_name}.png"), bbox_inches='tight', pad_inches=0.1)
     plt.show()
