@@ -17,7 +17,7 @@ if (-not $projectRoot) {
 }
 
 if (-not $windowSize) {
-    $windowSize = 100
+    $windowSize = 500
 }
 
 if (-not $approach) {
@@ -25,7 +25,7 @@ if (-not $approach) {
 }
 
 if (-not $modelName) {
-    $modelName = "model_4"
+    $modelName = "model_3"
 }
 
 if (-not $typeFuel) {

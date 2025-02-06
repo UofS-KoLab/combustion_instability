@@ -136,11 +136,11 @@ if __name__ == "__main__":
     plt.show()
 
     # Number of points
-    num_points = 480
+    num_points = 96
 
     # Time vector (0 to 48 seconds, with 480 points)
     time = np.linspace(0, 48, num_points)
-
+    print(len(time))
     plt.figure(figsize=(10, 5))
     # plt.scatter(time,outputsALL_label, label='Actual')
     plt.scatter(time,predictions*0.4, label='Predictions', marker='x')
@@ -152,17 +152,17 @@ if __name__ == "__main__":
     plt.savefig(os.path.join(plot_path + f"/prediction_transient_{args.window_size}ms_{args.model_name}.png"), bbox_inches='tight', pad_inches=0.1)
     plt.show()
 
-    
-    original_transient=[0]*193
-    original_transient.extend([0.4]*103)
-    original_transient.extend([0]*184)
-    plt.figure(figsize=(10, 5))
-    # plt.scatter(time,outputsALL_label, label='Actual')
-    plt.scatter(time,original_transient, label='Predictions', marker='x')
-    plt.yticks([0, 0.4], ["Stable", "Unstable"],fontsize=15)
-    plt.xlabel('Time (s)',fontsize=15)
-    # plt.ylabel('Prediction')
-    # plt.title('Model Predictions')
-    plt.grid(True)
-    plt.savefig(os.path.join(plot_path + f"/original_transient_{args.window_size}ms_{args.model_name}.png"), bbox_inches='tight', pad_inches=0.1)
-    plt.show()
+    # #depends on the window size
+    # original_transient=[0]*193
+    # original_transient.extend([0.4]*103)
+    # original_transient.extend([0]*184)
+    # plt.figure(figsize=(10, 5))
+    # # plt.scatter(time,outputsALL_label, label='Actual')
+    # plt.scatter(time,original_transient, label='Predictions', marker='x')
+    # plt.yticks([0, 0.4], ["Stable", "Unstable"],fontsize=15)
+    # plt.xlabel('Time (s)',fontsize=15)
+    # # plt.ylabel('Prediction')
+    # # plt.title('Model Predictions')
+    # plt.grid(True)
+    # plt.savefig(os.path.join(plot_path + f"/original_transient_{args.window_size}ms_{args.model_name}.png"), bbox_inches='tight', pad_inches=0.1)
+    # plt.show()
