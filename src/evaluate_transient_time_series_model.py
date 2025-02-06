@@ -132,7 +132,7 @@ if __name__ == "__main__":
     logging.info(f"Processed data shapes - Inputs: {inputsALL.shape}, Outputs: {outputsALL_label.shape}")
 
 
-    model_path=os.path.join(args.project_root,"model",args.approach,f"window_{args.window_size}ms","model_2","lstm_model_ts.keras")
+    model_path=os.path.join(args.project_root,"model",args.approach,f"window_{args.window_size}ms","model_4","lstm_model_ts.keras")
     model = load_model(model_path)
     # model = load_model(model_path, custom_objects={'InputLayer': tf.keras.layers.InputLayer})
     
@@ -149,8 +149,21 @@ if __name__ == "__main__":
 
     # with tf.keras.utils.custom_object_scope({'InputLayer': tf.keras.layers.InputLayer}):
     #     model = load_model(model_path)
-    predictions = model.predict(inputsALL)
-    predictions = (predictions > 0.5).astype(int) 
+    # predictions = model.predict(inputsALL)
+    # predictions = (predictions > 0.5).astype(int) 
+
+
+    predictions=[]
+    cache_prediction_file=os.path.join(args.project_root,"model",args.approach,f"window_{args.window_size}ms","model_4","predictions_transient.pkl")
+    if os.path.exists(cache_prediction_file):
+        logging.info("Loading data from cache...")
+        predictions = load(cache_prediction_file)
+    else:
+        predictions = model.predict(inputsALL)
+        predictions = (predictions > 0.5).astype(int) 
+        dump((predictions), cache_prediction_file)
+    
+
 
     accuracy = accuracy_score(outputsALL_label, predictions)
     
@@ -167,13 +180,32 @@ if __name__ == "__main__":
     # disp = ConfusionMatrixDisplay(confusion_matrix=cm)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Stable', 'Unstable'])
     disp.plot(cmap='Blues')
+
+    # Specify the folder and filename
+    plot_path = os.path.join(args.project_root, "plot", args.approach)
+
+    # Create the folder if it doesn't exist
+    if not os.path.exists(plot_path):
+        os.makedirs(plot_path)
+
+    # Save the plot
+    plt.savefig(plot_path + f"/confusion_matrix_transient_{args.window_size}ms_model_4.png", bbox_inches='tight', pad_inches=0.1)
+
     plt.show()
 
+    # Number of points
+    num_points = 480
+
+    # Time vector (0 to 48 seconds, with 480 points)
+    time = np.linspace(0, 48, num_points)
+
     plt.figure(figsize=(10, 6))
-    plt.plot(outputsALL_label, label='Actual')
-    plt.plot(predictions, label='Predictions')
-    plt.xlabel('Sample Index')
-    plt.ylabel('Value')
-    plt.title('Model Predictions vs Actual Values')
-    plt.legend()
+    # plt.scatter(time,outputsALL_label, label='Actual')
+    plt.scatter(time,predictions, label='Predictions', marker='x')
+    plt.yticks([0, 1], ["Stable", "Unstable"])
+    plt.xlabel('Time (s)')
+    # plt.ylabel('Prediction')
+    # plt.title('Model Predictions')
+    plt.grid(True)
+    plt.savefig(os.path.join(plot_path + f"/prediction_transient_{args.window_size}ms_model_4.png"), bbox_inches='tight', pad_inches=0.1)
     plt.show()
