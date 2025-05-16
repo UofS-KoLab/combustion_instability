@@ -109,103 +109,14 @@ def plot_results(X, labels, means, covariances, title):
     plt.ylabel('Feature 2')
     plt.colorbar(label='Cluster')
     plt.show()
-# def plot_results(X, labels, means, covariances, title):
-#     """Plot clustering results."""
-#     plt.figure(figsize=(10, 6))
-#     plt.scatter(X[:, 0], X[:, 1], c=labels, s=40, cmap='viridis', alpha=0.6)
-    
-#     for i, (mean, covar) in enumerate(zip(means, covariances)):
-#         # Convert covariance to axes
-#         v, w = np.linalg.eigh(covar)
-#         v = 2. * np.sqrt(2.) * np.sqrt(v)
-#         u = w[0] / np.linalg.norm(w[0])
-        
-#         # Calculate angle in degrees
-#         angle = np.degrees(np.arctan2(u[1], u[0]))
-        
-#         # Create ellipse (now correctly with 4 args)
-#         ell = plt.matplotlib.patches.Ellipse(
-#             xy=mean,
-#             width=v[0],
-#             height=v[1],
-#             angle=angle,
-#             color=f'C{i}',
-#             alpha=0.5
-#         )
-        
-#         ell.set_clip_box(plt.gca().bbox)
-#         ell.set_facecolor('none')
-#         plt.gca().add_artist(ell)
-#         plt.scatter(mean[0], mean[1], marker='x', color=f'C{i}', s=100)
-    
-#     plt.title(title)
-#     plt.xlabel('Feature 1')
-#     plt.ylabel('Feature 2')
-#     plt.colorbar(label='Cluster')
-#     plt.show()
 
-
-
-
-
-
-
-
-
-# def plot_results(X, labels, means, covariances, title):
-#     """Plot clustering results."""
-#     plt.figure(figsize=(10, 6))
-#     plt.scatter(X[:, 0], X[:, 1], c=labels, s=40, cmap='viridis', alpha=0.6)
-    
-#     # Plot ellipses for each Gaussian component
-#     for i, (mean, covar) in enumerate(zip(means, covariances)):
-#         # Convert covariance to axes
-#         v, w = np.linalg.eigh(covar)
-#         v = 2. * np.sqrt(2.) * np.sqrt(v)
-#         u = w[0] / np.linalg.norm(w[0])
-        
-#         # Plot ellipse
-#         angle = np.arctan(u[1]/u[0])
-#         angle = 180. * angle / np.pi  # convert to degrees
-#         ell = plt.matplotlib.patches.Ellipse(mean, v[0], v[1], 180. + angle, 
-#                                            color=f'C{i}', alpha=0.5)
-#         ell.set_clip_box(plt.gca().bbox)
-#         ell.set_facecolor('none')
-#         plt.gca().add_artist(ell)
-#         plt.scatter(mean[0], mean[1], marker='x', color=f'C{i}', s=100)
-    
-#     plt.title(title)
-#     plt.xlabel('Feature 1')
-#     plt.ylabel('Feature 2')
-#     plt.colorbar(label='Cluster')
-#     plt.show()
-
-# Main function
 
 if __name__ == "__main__":
     args = parse_arguments()
     df = pd.read_csv(args.data_root)
     df.head()
 
-    # row_index = 5  # Replace with the index you want to check
-    # row_data = df.iloc[row_index]
 
-    # # Print the entire row
-    # print(f"Row at index {row_index}:")
-    # print(row_data)
-
-    # df = df.drop(index=2)
-    # df = df.drop(index=5)
-
-
-    # row_index = 4  # Replace with the index you want to check
-    # row_data = df.iloc[row_index]
-
-    # # Print the entire row
-    # print(f"Row at index {row_index}:")
-    # print(row_data)
-
-    
 
     X = df.copy() 
     X.drop(['filename','stability', 
@@ -374,22 +285,7 @@ if __name__ == "__main__":
     df['cluster_label'] = labels
     new_df = df[['filename','stability','cluster_label', 'std_pressure', 'std_pmt','norm_sync_score_first_5_peaks','score_instability','peak_to_peak_pressure']]
     new_df.to_csv(os.path.join(args.stability_file_to_save,f"{args.fuel_type}kmeans_thr_{args.threshold}_label.csv"), index=False)
-    
-
-    # for k in range(gmm.n_components):
-    #     example_list = (np.diag(gmm.covariances_[k])).tolist()
-    #         # Zip the example_list with column_names
-    #     zipped_list = list(zip(column_names, example_list))
-        
-    #     # Sort the zipped list by the values in example_list (second element of the tuple)
-    #     sorted_list = sorted(zipped_list, key=lambda x: x[1], reverse=True)
-        
-    #     # Print the sorted list
-    #     print(f"Cluster {k} sorted features by variance: LOWER BETTER")
-    #     for column, value in sorted_list:
-    #         print(f"{column}: {value}")
-    
-   
+ 
 
     # Fit a classifier on GMM clusters
     clf = RandomForestClassifier(random_state=42)

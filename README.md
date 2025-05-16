@@ -38,6 +38,83 @@ Additionally, there is a test dataset available in the "test_dataset" folder, wh
 
 ---
 
+# 💻 LSTM-Based Instability Prediction with FFT Features
+
+## 📌 How to Use This Repository
+
+### ⚠️ Data Access
+Due to GitHub's file size and privacy limitations, the dataset is **not uploaded to this repository**. However, I have uploaded the data to the shared OneDrive folder previously provided. Please contact me if you need access.
+
+### 📁 Data Format and Preprocessing
+The original dataset is in Excel format. To improve processing speed and make data loading more efficient, I combined the necessary data into a single `.pkl` file. Multiple versions of the dataset are available in the folder data:
+- **time_series**
+- **fft**
+
+The initial labels used for training are based on a file called `stability_labels`, shared by Professor Bae.
+
+### 🖥️ Script Execution (Windows)
+To simplify script execution, I created a PowerShell script (`.ps1`) to run the Python files and easily adjust arguments. This project was developed and tested on a Windows system. If you're using Linux, you can create a `.sh` file, but note that the Linux version hasn't been updated yet.
+
+---
+
+## 🔍 Key Scripts and Their Functions
+
+### 📂 Folder: `src/`
+
+#### `feature_extraction.py`
+This script:
+- Loads raw sensor data from all samples
+- Applies a notch filter
+- Segments each signal into windows (e.g., 100ms, 300ms, 500ms)
+- Applies FFT on each window to extract:
+  - Amplitude
+  - Power
+  - Phase
+- Saves the output as `.pkl` files
+
+**Note**: You can adjust the windowing parameters by modifying the following variables (currently hardcoded, sorry):
+- `num_segments_min`
+- `num_segments_max`
+- `inputs_all`
+
+#### `load_and_preprocess_data.py`
+This script:
+- Loads the time series data
+- Applies the notch filter
+- Saves the filtered data as `.pkl`  
+It is primarily used for the time-domain LSTM model.
+
+#### `train_fft_model.py`
+This script trains an LSTM model using the FFT features. The architecture is simple but effective for this application.
+
+#### `tune_hyperparameters_fft_model.py`
+Performs a grid search to find the best hyperparameters for the FFT-based LSTM model. It may take longer to run due to the combinatorial search.
+
+---
+
+### 📂 Folder: `src_test/`
+
+#### `merge_data.py`
+A utility-heavy script that:
+- Merges all features used in the analysis
+- Filters out specific frequencies (e.g., 0–5 Hz for PMT)
+- Computes additional features such as `norm_sync_score`
+- Prepares data for clustering
+
+#### `gmm.py` and `kmeans_clustering.py`
+These scripts:
+- Load the merged feature file
+- Perform clustering (GMM or KMeans)
+- Optionally plot the cluster outputs
+- Include a post-clustering feature importance estimation method (not a formal importance metric, but a useful heuristic)
+
+---
+
+## 📬 Contact
+If you have any questions or need access to the data, feel free to contact me via email: stephany.valarezo@usask.ca.
+
+
+
 Please ensure to review the dataset and folder structure carefully to effectively utilize the provided resources. If you encounter any issues or have questions, feel free to reach out to the repository maintainers (Stephany Valarezo). 
 
 SVP
