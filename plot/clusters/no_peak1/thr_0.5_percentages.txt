@@ -1,0 +1,7 @@
+Results for threshold 0.5:
+total unstable: 21, total cluster 0: 1, percentage: 4.76%
+total unstable: 21, total cluster 1: 19, percentage: 90.48%
+total unstable: 21, total cluster 2: 1, percentage: 4.76%
+total stable: 83, total cluster 0: 25, percentage: 30.12%
+total stable: 83, total cluster 1: 45, percentage: 54.22%
+total stable: 83, total cluster 2: 13, percentage: 15.66%

@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-
+import time
+from scipy.fft import fft
 # Configure logging
 def setup_logging(log_file):
     logging.basicConfig(
@@ -35,12 +36,13 @@ def get_filenames(data_root):
 def get_data(cache_file):
     """Load and preprocess data, or load from cache if available."""
     data=[]
+    print("carche",cache_file)
     if os.path.exists(cache_file):
         logging.info("Loading data from cache...")
         data = load(cache_file)
     else:
         print("There is not data available. Run the script called load_and_preprocess_transient.py to generate the data.")
-    
+    print("here",data)
     inputsALL, outputsALL_label, output_name = data
     inputsALL=np.array(inputsALL)
     outputsALL_label=np.array(outputsALL_label)
@@ -73,6 +75,26 @@ def get_log_file_path(project_root, window_size, approach):
     log_file = os.path.join(logs_folder, f"{approach}_window_{window_size}ms.log")
     return log_file
 
+def compute_fft(time_series, sampling_rate, max_freq=500):
+    """Computes FFT and returns frequencies, magnitudes, powers, and phases."""
+    n = len(time_series)
+    
+    fft_result = fft(time_series)
+    freqs = np.fft.fftfreq(n, d=sampling_rate)
+
+    positive_freqs = freqs[:n//2]
+    positive_fft_result = fft_result[:n//2]
+
+    mask = positive_freqs <= max_freq
+    positive_freqs = positive_freqs[mask]
+    positive_fft_result = positive_fft_result[mask]
+    
+    magnitude = np.abs(positive_fft_result)
+    magnitude = np.round(magnitude, 5)
+    power = magnitude ** 2
+    phase = np.angle(positive_fft_result)
+
+    return positive_freqs, magnitude, power, phase
 
 if __name__ == "__main__":
     args = parse_arguments()
@@ -91,40 +113,50 @@ if __name__ == "__main__":
     # # Log the shapes of the processed data
     logging.info(f"Processed data shapes - Inputs: {inputsALL.shape}, Outputs: {outputsALL_label.shape}")
 
-    model_path=os.path.join(args.project_root,"model",args.approach,f"window_{args.window_size}ms",args.model_name,"lstm_model_ts.keras")
+    # model_path=os.path.join(args.project_root,"model",args.approach,f"window_{args.window_size}ms",args.model_name,"lstm_model_ts.keras")
+    # model = load_model(model_path)
+
+    print(inputsALL.shape)
+    times_all=[]
+    # for i in range(1000):
+    #     input = inputsALL[i]
+    #     start_time=time.time()
+    #     input = input.reshape(1, input.shape[0], input.shape[1])
+    #     prediction = model.predict(input)
+    #     prediction = (prediction > 0.5).astype(int) 
+    #     print(prediction)
+    #     print(f"Time: {time.time()-start_time}")
+    #     times_all.append(time.time()-start_time)
+
+    # print(f"Mean time: {np.mean(times_all)}")
+    # print(f"Max time: {np.max(times_all)}")
+    # print(f"Min time: {np.min(times_all)}")
+    model_path=os.path.join(args.project_root,"model","fft",f"window_{args.window_size}ms","model_20","lstm_model_fft.keras")
     model = load_model(model_path)
+    for j in range(1000):
+        pressure_s=inputsALL[j][:,0]
+        PMT_s=inputsALL[j][:,1]
+        start_time=time.time()
+        freqs_pressure, magnitude_pressure, power_pressure, phase_pressure = compute_fft(pressure_s, 0.0001)
+        freqs_pmt, magnitude_pmt, power_pmt, phase_pmt = compute_fft(PMT_s, 0.0001)
+        
+        mult_mag = magnitude_pressure*magnitude_pmt
+        phase_subs = phase_pressure-phase_pmt
 
-    # Evaluate the model
-    predictions=[]
-    cache_prediction_file=os.path.join(args.project_root,"model",args.approach,f"window_{args.window_size}ms",args.model_name,"predictions.pkl")
-    if os.path.exists(cache_prediction_file):
-        logging.info("Loading data from cache...")
-        predictions = load(cache_prediction_file)
-    else:
-        predictions = model.predict(inputsALL)
-        predictions = (predictions > 0.5).astype(int) 
-        dump((predictions), cache_prediction_file)
-    
-    accuracy = accuracy_score(outputsALL_label, predictions)
-    
-    logging.info(f"Accuracy: {accuracy}")
-    print(f"Accuracy: {accuracy}")
+        combined_array = np.column_stack((mult_mag, phase_subs))[:16] #51
+        
+        combined_array = combined_array.reshape(1, 16, 2) #51
+        
+        # start_time=time.time()
+        predictions = model.predict(combined_array)
+        predictions = np.argmax(predictions, axis=1)
+        times_all.append(time.time()-start_time)
+        
+    print(f"Mean time: {np.mean(times_all)}")
+    print(f"Max time: {np.max(times_all)}")
+    print(f"Min time: {np.min(times_all)}")
+       
 
-    cm = confusion_matrix(outputsALL_label, predictions)
-    logging.info(f"Confusion Matrix:\n{cm}")
-    print(f"Confusion Matrix:\n{cm}")
-    
-    # Plot confusion matrix
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Stable', 'Unstable'])
-    disp.plot(cmap='Blues')
+        
 
-    # Specify the folder and filename
-    plot_path = os.path.join(args.project_root, "plot", args.approach)
-
-    # Create the folder if it doesn't exist
-    if not os.path.exists(plot_path):
-        os.makedirs(plot_path)
-
-    # Save the plot
-    plt.savefig(plot_path + f"/confusion_matrix_{args.window_size}ms_{args.model_name}.png", bbox_inches='tight', pad_inches=0.1)
-    plt.show()
+        

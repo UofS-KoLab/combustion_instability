@@ -7,7 +7,7 @@ from scipy import signal
 from joblib import dump, load
 import logging
 import matplotlib.pyplot as plt
-
+import time
 import keras_tuner as kt
 
 from sklearn.utils.class_weight import compute_class_weight
@@ -115,7 +115,7 @@ def get_filenames(data_root):
 def get_cache_file_path(project_root, window_size, approach):
     """Generate the cache file path based on window size and approach."""
     # Create the folder path
-    folder_path = os.path.join(project_root,"data", approach, f"window_{window_size}ms")
+    folder_path = os.path.join(project_root,"data",args.approach, "h2", f"window_{window_size}ms")
     os.makedirs(folder_path, exist_ok=True)  # Create the folder if it doesn't exist
     
     # Generate the cache file path
@@ -133,18 +133,58 @@ def get_data(cache_file, filenames, stability_label_dict):
     else:
         print("No data to load.")
     
-    inputsALL, outputsALL_label = data
+    inputsALL, outputsALL_label, output_name = data
     inputsALL=np.array(inputsALL)
     outputsALL_label=np.array(outputsALL_label)
     # Use the loaded data
     logging.info(f"Array 1 Shape:{inputsALL.shape}")
     logging.info(f"Array 2 Shape:{outputsALL_label.shape}")
     # Map string labels to integers
-    label_mapping = {"Stable": 0, "Unstable": 1}
-    outputsALL = np.array([label_mapping[label] for label in outputsALL_label], dtype=np.int32)
+    # label_mapping = {"Stable": 0, "Unstable": 1}
+    # outputsALL = np.array([label_mapping[label] for label in outputsALL_label], dtype=np.int32)
+    
+
+    df_new_cluster = pd.read_csv("C:\\Users\\qpw475\\Documents\\combustion_instability\\data\\labels\\h2kmeans_thr_0.7_label.csv")
+    new_outputSAll=np.zeros_like(outputsALL_label)
+    
+    for i in range(len(output_name)):
+        # new_outputSAll[i]=df_new_cluster[df_new_cluster['filename']==output_name[i]]['cluster_label'].values[0]
+        new_outputSAll[i]=df_new_cluster[df_new_cluster['filename']==output_name[i]]['label_stephany'].values[0]
+    
+    # new_outputSAll = new_outputSAll.astype(int)
+    label_mapping = {'Stable': 0, 'Unstable': 1}
+    # new_outputSAll = new_outputSAll.astype(int)
+    # print(new_outputSAll)
+    new_outputSAll = np.where(new_outputSAll == "Stable", 0, 
+                 np.where(new_outputSAll == "Unstable", 1, new_outputSAll))
+
+    # Convert the array to integers (if needed)
+    new_outputSAll = new_outputSAll.astype(int)
+
+    # Print the updated array to verify
+
+
+
+    # new_outputSAll = new_outputSAll.tolist()
+    # print(new_outputSAll)
+    # outputsALL = np.array([label_mapping[label] for label in new_outputSAll], dtype=np.int32)
+
+    
+
+
+  
+
+    # new_outputSAll[new_outputSAll == 1] = 4
+    # # new_outputSAll[new_outputSAll == 0] = 1
+    # new_outputSAll[new_outputSAll == 2] = 1 #0
+    # new_outputSAll[new_outputSAll == 4] = 2
+
+    outputsALL=np.array(new_outputSAll)
     print(inputsALL.shape)
     print(outputsALL.shape)
-    return inputsALL,outputsALL
+
+
+    return inputsALL,outputsALL, output_name
 
 def compute_class_weights(y_train):
     class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(y_train), y=y_train)
@@ -172,11 +212,11 @@ def build_model(hp):
         LSTM(160,
              input_shape=input_shape, return_sequences=True, 
              kernel_regularizer=l2(hp.Float('l2_regularizer1', 1e-4, 1e-2, sampling='LOG'))),
-        Dropout(0.3),
+         Dropout(hp.Float('dropout_rate1', 0.0, 0.5, step=0.1)),#Dropout(0.3),
         
         LSTM(192,
              kernel_regularizer=l2(hp.Float('l2_regularizer2', 1e-4, 1e-2, sampling='LOG'))),
-        Dropout(0.0),
+        Dropout(hp.Float('dropout_rate2', 0.0, 0.5, step=0.1)),#Dropout(0.0),
         
         Dense(output_shape, activation='softmax')
     ])
@@ -219,7 +259,7 @@ if __name__ == "__main__":
 
     cache_file=get_cache_file_path(args.project_root,args.window_size,args.approach)
 
-    inputsALL, outputsALL = get_data(cache_file, filenames, stability_label_dict)
+    inputsALL, outputsALL , output_name= get_data(cache_file, filenames, stability_label_dict)
 
     # Ensure reproducibility
     np.random.seed(args.seed)
@@ -246,13 +286,14 @@ if __name__ == "__main__":
         objective='val_accuracy',
         max_epochs=50,
         factor=3,
-        directory='tuning_results2',
+        directory='tuning_results_label_stepahany_30ms', #100_3labels_gmm
         project_name='lstm_hyperparameter_tuning'
     )
 
     # Compute class weights
     class_weights = compute_class_weights(y_train)
 
+    start_time = time.time()
     # Perform search
     tuner.search(X_train, y_train, epochs=30, validation_data=(X_test, y_test), 
                 class_weight=class_weights, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3)])
@@ -263,4 +304,6 @@ if __name__ == "__main__":
     for hp in best_hps.values:
         print(f"{hp}: {best_hps.get(hp)}")
 
+    Stop_time = time.time()
+    print(f"Time taken: {Stop_time - start_time}")
     print(best_hps)

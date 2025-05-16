@@ -27,6 +27,7 @@ def parse_arguments():
     parser.add_argument("--duration_sample_ms", type=int, required=True, help="Total duration of the sample of the time series in ms.")
     parser.add_argument("--window_size", type=int, required=True, help="Size of the time series window in ms (e.g., 100 for 100ms).")
     parser.add_argument("--approach", type=str, required=True, choices=["time_series", "fft"], help="Approach: 'time_series' or 'fft'.")
+    parser.add_argument("--fuel_type", type=str, required=True, help="Path to the stability labeling CSV file.")
     return parser.parse_args()
 
 
@@ -58,7 +59,7 @@ def denoise_pressure(fhat_pressure, threshold_pressure):
     return signal_filtered_pressure
 
 
-def notch_filter(pressure, samp_freq=10000, notch_freq=60.0, quality_factor=20.0):
+def notch_filter(pressure, samp_freq=10000, notch_freq=60.0, quality_factor=10.0):
     """Apply a notch filter to remove noise from the signals."""
     b_notch, a_notch = signal.iirnotch(notch_freq, quality_factor, samp_freq)
     notch_filtered_pressure = signal.filtfilt(b_notch, a_notch, pressure)
@@ -88,25 +89,42 @@ def compute_fft(time_series, sampling_rate, max_freq=500):
 
 def get_data(cache_file, filenames, stability_label_dict, window_size, duration_sample_ms):
     """Load and preprocess data, or load from cache if available."""
+    #for 12 seconds we have
+    #NUM_SEGMENTS_MIN = 1
+    #NUM_SEGMENTS_MAX = 1 
+    #inputs_all = np.empty((amount_of_samples, 6001, 10))
 
-    NUM_SEGMENTS_MIN = 24  # Minimum number of segments
-    NUM_SEGMENTS_MAX = 24  # Maximum number of segments
+    #for 30ms
+    #NUM_SEGMENTS_MIN = 400
+    #NUM_SEGMENTS_MAX = 400 
+    #inputs_all = np.empty((amount_of_samples,16 , 10))
+
+    #for 100ms
+    #NUM_SEGMENTS_MIN = 120
+    #NUM_SEGMENTS_MAX = 120 
+    #inputs_all = np.empty((amount_of_samples,51 , 10))
+
+    NUM_SEGMENTS_MIN = 120# 24#40# 120#120  # Minimum number of segments
+    NUM_SEGMENTS_MAX = 120 #24#40#120#120  # Maximum number of segments
     NUM_SEGMENTS_INC = 1    # Segment increment
     data = []
     outputsALLr = []
+    output_name=[]
 
     SEGMENT_NUM= duration_sample_ms / window_size
     amount_of_samples=int(len(filenames)*SEGMENT_NUM)
     total_points=120000
     amount_points_in_segment=int(total_points/SEGMENT_NUM)
+    print(f"amount_of_samples: {amount_of_samples}")
     logging.info(f"The inputs_all shape should be: {amount_of_samples}, {amount_points_in_segment}, 2")
 
     if os.path.exists(cache_file):
         logging.info("Loading data from cache...")
         data = load(cache_file)
     else:
-        # inputs_all = np.empty((12480,4160,2496 51,16, 2))  # Initialize array for input data
-        inputs_all = np.empty((2496, 251, 10))
+        #np.empty((41600, 16, 10))
+        # inputs_all = np.empty((12480,4160,2496 51,16, 2)) (amount_of_samples, 6001, 10))  # Initialize array for input data
+        inputs_all = np.empty((amount_of_samples, 51, 10))
         outputs_all = []
         k = 0
 
@@ -126,7 +144,8 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
                 first_line = f.readline().strip()
             
             expected_header = "time,p3,pmt"
-            if first_line == expected_header:
+            expected_header_2 = "time,p3,p5,pmt"
+            if first_line == expected_header or first_line == expected_header_2:
                 acoustic_data = pd.read_csv(file_path,names=['time', 'p3', 'pmt'], header=None, skiprows=1)
             else:    
                 print("Not expected header")
@@ -149,6 +168,8 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
                     pressure_s = pressure[(current_segment - 1) * pressure_segment_size:current_segment * pressure_segment_size]
                     PMT_s = PMT[(current_segment - 1) * PMT_segment_size:current_segment * PMT_segment_size]
                     
+                    print("current_segment", current_segment, "total_segments", total_segments)
+                    
                     freqs_pressure, magnitude_pressure, power_pressure, phase_pressure = compute_fft(pressure_s, 0.0001)
                     freqs_pmt, magnitude_pmt, power_pmt, phase_pmt = compute_fft(PMT_s, 0.0001)
                     print(len(freqs_pressure))
@@ -166,11 +187,12 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
                     k += 1
 
                     outputsALLr.append(label)
+                    output_name.append(file_name)
             logging.info(f"Processed {file_name} with {len(time)} time samples.")
         
         outputs_all = np.array(outputsALLr)
-        dump((inputs_all, outputs_all), cache_file)
-        data = (inputs_all, outputs_all)
+        dump((inputs_all, outputs_all, np.array(output_name)), cache_file)
+        data = (inputs_all, outputs_all,np.array(output_name))
         logging.info(f"Data saved to {cache_file}.")
     
     return data
@@ -179,10 +201,11 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
 def get_cache_file_path(project_root, window_size, approach):
     """Generate the cache file path based on window size and approach."""
     # Create the folder path
-    folder_path = os.path.join(project_root,"data", approach, f"window_{window_size}ms")
+    folder_path = os.path.join(project_root,"data", approach,args.fuel_type, f"window_{window_size}ms")
     os.makedirs(folder_path, exist_ok=True)  # Create the folder if it doesn't exist
     
     # Generate the cache file path
+    # cache_file = os.path.join(folder_path, "data.pkl")
     cache_file = os.path.join(folder_path, "data.pkl")
     
     return cache_file
@@ -213,7 +236,7 @@ if __name__ == "__main__":
     # Load and preprocess data
     stability_label_dict = load_stability_labels(args.stability_file)
     filenames = get_filenames(args.data_root)
-    inputsALL, outputsALL_label = get_data(cache_file, filenames, stability_label_dict, args.window_size, args.duration_sample_ms)
+    inputsALL, outputsALL_label, output_name = get_data(cache_file, filenames, stability_label_dict, args.window_size, args.duration_sample_ms)
     
     print(inputsALL[0][0][1])
     print(inputsALL[0][1][1])

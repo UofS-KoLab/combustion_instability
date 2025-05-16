@@ -1,0 +1,7 @@
+Results for threshold 0.7:
+total unstable: 0, total cluster 0: 0, percentage: 0.00%
+total unstable: 0, total cluster 1: 0, percentage: 0.00%
+total unstable: 0, total cluster 2: 0, percentage: 0.00%
+total stable: 28, total cluster 0: 1, percentage: 3.57%
+total stable: 28, total cluster 1: 14, percentage: 50.00%
+total stable: 28, total cluster 2: 13, percentage: 46.43%

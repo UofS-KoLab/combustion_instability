@@ -57,7 +57,7 @@ def denoise_pressure(fhat_pressure, threshold_pressure):
     return signal_filtered_pressure
 
 
-def notch_filter(pressure, samp_freq=10000, notch_freq=60.0, quality_factor=20.0):
+def notch_filter(pressure, samp_freq=10000, notch_freq=60.0, quality_factor=10.0):
     """Apply a notch filter to remove noise from the signals."""
     b_notch, a_notch = signal.iirnotch(notch_freq, quality_factor, samp_freq)
     notch_filtered_pressure = signal.filtfilt(b_notch, a_notch, pressure)
@@ -87,8 +87,8 @@ def compute_fft(time_series, sampling_rate, max_freq=500):
 def get_data(cache_file, filenames, stability_label_dict, window_size, duration_sample_ms):
     """Load and preprocess data, or load from cache if available."""
 
-    NUM_SEGMENTS_MIN = 48#240  # Minimum number of segments
-    NUM_SEGMENTS_MAX = 48#240  # Maximum number of segments
+    NUM_SEGMENTS_MIN = 240#48#240  # Minimum number of segments
+    NUM_SEGMENTS_MAX = 240#48#240  # Maximum number of segments
     NUM_SEGMENTS_INC = 1    # Segment increment
     data = []
     outputsALLr = []
@@ -104,7 +104,7 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
         data = load(cache_file)
     else:
         # inputs_all = np.empty(480(12480, 1000, 2))  # Initialize array for input data
-        inputs_all = np.empty((96, 251, 10))
+        inputs_all = np.empty((240, 51, 10))
         outputs_all = []
         k = 0
 
@@ -157,9 +157,9 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
 
             logging.info(f"Processed {file_name} with {len(time)} time samples.")
         
-        outputsALLr=["Stable"]*39#193
-        outputsALLr.extend(["Unstable"]*20) #103
-        outputsALLr.extend(["Stable"]*37) #184
+        outputsALLr=["Stable"]*187 #643 #193 #39#193
+        outputsALLr.extend(["Unstable"]*613 ) #157 ) #47) #20) #103
+        # outputsALLr.extend(["Stable"]*37) #184
         outputs_all = np.array(outputsALLr)
         dump((inputs_all, outputs_all), cache_file)
         data = (inputs_all, outputs_all)
@@ -175,7 +175,8 @@ def get_cache_file_path(project_root, window_size, approach):
     os.makedirs(folder_path, exist_ok=True)  # Create the folder if it doesn't exist
     
     # Generate the cache file path
-    cache_file = os.path.join(folder_path, "data.pkl")
+    # cache_file = os.path.join(folder_path, "data_s_to_u.pkl")
+    cache_file = os.path.join(folder_path, "data_u_to_s.pkl")
     
     return cache_file
 
@@ -205,7 +206,7 @@ if __name__ == "__main__":
     # Load and preprocess data
     stability_label_dict=""
     transient_path=os.path.join(args.project_root,"data","raw","transient","hidrogen")
-    filenames = [os.path.join(transient_path,"open_25kW_600slpm_70%to80%.csv"), os.path.join(transient_path,"open_25kW_600slpm_80%to70%.csv")]
+    filenames = [os.path.join(transient_path,"open_25kW_600slpm_80%to70%.csv")] #, os.path.join(transient_path,"open_25kW_600slpm_80%to70%.csv")
     inputsALL, outputsALL_label = get_data(cache_file, filenames, stability_label_dict, args.window_size, args.duration_sample_ms)
     
     print(inputsALL[0][0][1])

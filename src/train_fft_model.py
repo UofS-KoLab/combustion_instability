@@ -7,9 +7,11 @@ from scipy import signal
 from joblib import dump, load
 import logging
 import matplotlib.pyplot as plt
-
+from sklearn.metrics import accuracy_score
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.model_selection import train_test_split
+
+import shap
 
 import tensorflow as tf
 from tensorflow import keras
@@ -113,13 +115,18 @@ def get_filenames(data_root):
 def get_cache_file_path(project_root, window_size, approach):
     """Generate the cache file path based on window size and approach."""
     # Create the folder path
-    folder_path = os.path.join(project_root,"data", approach, f"window_{window_size}ms")
+    fuel_type="h2"
+    folder_path = os.path.join(project_root,"data", approach,fuel_type, f"window_{window_size}ms")
     os.makedirs(folder_path, exist_ok=True)  # Create the folder if it doesn't exist
     
     # Generate the cache file path
     cache_file = os.path.join(folder_path, "data.pkl")
 
     print(os.path.join(folder_path, "data.pkl"))
+
+    # cache_file = os.path.join(folder_path, "data_cluster_3.pkl")
+
+    # print(os.path.join(folder_path, "data_cluster_3.pkl"))
     
     return cache_file
 
@@ -131,7 +138,8 @@ def get_data(cache_file, filenames, stability_label_dict):
     else:
         print("No data to load.")
     
-    inputsALL, outputsALL_label = data
+    # inputsALL, outputsALL_label = data
+    inputsALL, outputsALL_label, output_name = data
     inputsALL=np.array(inputsALL)
     outputsALL_label=np.array(outputsALL_label)
     # Use the loaded data
@@ -140,10 +148,14 @@ def get_data(cache_file, filenames, stability_label_dict):
     # Map string labels to integers
     label_mapping = {"Stable": 0, "Unstable": 1}
     outputsALL = np.array([label_mapping[label] for label in outputsALL_label], dtype=np.int32)
-    print(inputsALL.shape)
-    print(outputsALL.shape)
+    # print(inputsALL.shape)
+    # print(outputsALL.shape)
+    # print(outputsALL)
+
+
+    # outputsALL=outputsALL_label
     print(outputsALL)
-    return inputsALL,outputsALL
+    return inputsALL,outputsALL,output_name
 
 
 def compute_class_weights(y_train):
@@ -227,14 +239,46 @@ if __name__ == "__main__":
 
     cache_file=get_cache_file_path(args.project_root,args.window_size,args.approach)
 
-    inputsALL, outputsALL = get_data(cache_file, filenames, stability_label_dict)
+    # # inputsALL, outputsALL = get_data(cache_file, filenames, stability_label_dict)
+    inputsALL, outputsALL, output_name = get_data(cache_file, filenames, stability_label_dict)
+    # print(f"shapes: {inputsALL.shape}, {outputsALL.shape} {output_name.shape}")
+
+    # df_new_cluster = pd.read_csv("C:\\Users\\qpw475\\Documents\\combustion_instability\\data\\labels\\h2kmeans_thr_0.7_label.csv")
+    # new_outputSAll=np.zeros_like(outputsALL)
+    # for i in range(len(output_name)):
+    #     new_outputSAll[i]=df_new_cluster[df_new_cluster['filename']==output_name[i]]['cluster_label'].values[0]
+    df_new_cluster = pd.read_csv("C:\\Users\\qpw475\\Documents\\combustion_instability\\data\\labels\\h2kmeans_thr_0.7_label.csv")
+    new_outputSAll=np.zeros_like(outputsALL)
+    
+    for i in range(len(output_name)):
+        # new_outputSAll[i]=df_new_cluster[df_new_cluster['filename']==output_name[i]]['cluster_label'].values[0]
+        new_outputSAll[i]=df_new_cluster[df_new_cluster['filename']==output_name[i]]['label_stephany'].values[0]
+    
+    # new_outputSAll = new_outputSAll.astype(int)
+    label_mapping = {'Stable': 0, 'Unstable': 1}
+    # new_outputSAll = new_outputSAll.astype(int)
+    # print(new_outputSAll)
+    new_outputSAll = np.where(new_outputSAll == "Stable", 0, 
+                 np.where(new_outputSAll == "Unstable", 1, new_outputSAll))
+
+    # Convert the array to integers (if needed)
+    new_outputSAll = new_outputSAll.astype(int)
+    # new_outputSAll = new_outputSAll.astype(int)
+    # # new_outputSAll[new_outputSAll == 1] = 4
+    # # # new_outputSAll[new_outputSAll == 0] = 1
+    # # new_outputSAll[new_outputSAll == 2] = 1 #0
+    # # new_outputSAll[new_outputSAll == 4] = 2
+    # 
+    outputsALL=new_outputSAll
+    print(new_outputSAll.shape)
+    print(outputsALL.shape)
 
     # Ensure reproducibility
     np.random.seed(args.seed)
     tf.random.set_seed(args.seed)
-    print(inputsALL[0][0][1])
-    print(inputsALL[0][1][1])
-    print(inputsALL[0][2][1])
+    # print(inputsALL[0][0][1])
+    # print(inputsALL[0][1][1])
+    # print(inputsALL[0][2][1])
     # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(inputsALL, outputsALL, test_size=args.test_size, random_state=args.seed)
     
@@ -276,6 +320,93 @@ if __name__ == "__main__":
         'selected_features': selected_features,
         'history': history.history
     }
+
+    predictions = model.predict(inputsALL[:, :, selected_features])
+    print(predictions)
+    predictions = np.argmax(predictions, axis=1)
+
+    accuracy = accuracy_score(outputsALL, predictions)
+    print(accuracy)
+
+
+    # X_train=inputsALL[0:100, :, selected_features] 
+    # X_test=inputsALL[100:110, :, selected_features]
+    # #Create the SHAP explainer
+    # explainer = shap.GradientExplainer(model,X_train)
+
+    # # Explain a few test instances
+    # shap_values = explainer.shap_values(X_test)
+
+    # # Convert to NumPy array for visualization if necessary
+    # shap_values = np.array(shap_values)
+
+    # # print(shap_values)
+    # print("X_train shape:", X_train.shape)
+    # print("X_test shape:", X_test.shape)
+    # print("shap_values shape:", np.array(shap_values).shape)
+
+
+    # shap_values_2d = np.sum(shap_values, axis=(1, 3))  # Sum over time steps and classes
+    # print("shap_values_2d shape:", shap_values_2d.shape)  # Expected: (10, 2)
+
+    # X_test_2d = np.mean(X_test, axis=1)  # Average over time steps
+    # print("X_test_2d shape:", X_test_2d.shape)  # Expected: (10, 2)
+
+    # # Summary plot
+    # shap.summary_plot(shap_values_2d, X_test_2d)
+
+    # index = 0  # Choose a sample to visualize
+
+    # shap_values_single = np.sum(shap_values[index], axis=0)  # Sum over time steps
+    # print("shap_values_single shape:", shap_values_single.shape)  # Expected: (2, 2)
+
+    # X_test_single = np.mean(X_test[index], axis=0)  # Average over time
+    # print("X_test_single shape:", X_test_single.shape)  # Expected: (2,)
+
+
+    # shap_mean_importance = np.mean(np.abs(shap_values_2d), axis=0)
+    # print(shap_mean_importance)
+
+    # # shap.force_plot(explainer.expected_value, shap_values_2d[0], X_test_2d[0])
+
+    # # Assuming shap_values has shape (samples, time_steps, features)
+    # shap_values_abs = np.abs(shap_values_2d.values)  # Take absolute values
+
+    # # Aggregate SHAP values over features (sum over axis 2)
+    # shap_time_importance = shap_values_abs.mean(axis=(0, 2))  # Mean over samples and features
+
+    # # Plot time step importance
+    # plt.figure(figsize=(10, 5))
+    # plt.plot(range(len(shap_time_importance)), shap_time_importance, marker='o')
+    # plt.xlabel("Time Step")
+    # plt.ylabel("Mean Absolute SHAP Value")
+    # plt.title("Importance of Time Steps in LSTM Model")
+    # plt.grid()
+    # plt.show()
+
+    #     # Get indices of top 5 most important time steps
+    # top_time_steps = np.argsort(shap_time_importance)[-5:][::-1]
+    # print("Most important time steps:", top_time_steps)
+
+
+
+    # shap.summary_plot(shap_values, X_test)
+
+
+
+    # shap.force_plot(explainer.expected_value[0], shap_values[0], X_test)
+
+    # shap.waterfall_plot(shap.Explanation(values=shap_values[0], 
+    #                                  base_values=explainer.expected_value[0], 
+    #                                  data=X_test[0]))
+
+
+
+
+
+
+
+
     save_training_params(training_params, output_dir)
     # Save the model
     save_model(model, output_dir)

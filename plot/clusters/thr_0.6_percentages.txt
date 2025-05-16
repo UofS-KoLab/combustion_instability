@@ -1,0 +1,7 @@
+Results for threshold 0.6:
+total unstable: 21, total cluster 0: 5, percentage: 23.81%
+total unstable: 21, total cluster 1: 16, percentage: 76.19%
+total unstable: 21, total cluster 2: 0, percentage: 0.00%
+total stable: 83, total cluster 0: 47, percentage: 56.63%
+total stable: 83, total cluster 1: 36, percentage: 43.37%
+total stable: 83, total cluster 2: 0, percentage: 0.00%

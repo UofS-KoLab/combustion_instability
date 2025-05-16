@@ -1,0 +1,7 @@
+Results for threshold 0.4:
+total unstable: 21, total cluster 0: 0, percentage: 0.00%
+total unstable: 21, total cluster 1: 16, percentage: 76.19%
+total unstable: 21, total cluster 2: 5, percentage: 23.81%
+total stable: 83, total cluster 0: 22, percentage: 26.51%
+total stable: 83, total cluster 1: 26, percentage: 31.33%
+total stable: 83, total cluster 2: 35, percentage: 42.17%

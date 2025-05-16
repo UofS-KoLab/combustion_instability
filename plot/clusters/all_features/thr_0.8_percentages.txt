@@ -1,0 +1,7 @@
+Results for threshold 0.8:
+total unstable: 21, total cluster 0: 5, percentage: 23.81%
+total unstable: 21, total cluster 1: 16, percentage: 76.19%
+total unstable: 21, total cluster 2: 0, percentage: 0.00%
+total stable: 83, total cluster 0: 29, percentage: 34.94%
+total stable: 83, total cluster 1: 48, percentage: 57.83%
+total stable: 83, total cluster 2: 6, percentage: 7.23%

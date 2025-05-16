@@ -24,6 +24,7 @@ def parse_arguments():
     parser.add_argument("--duration_sample_ms", type=int, required=True, help="Total duration of the sample of the time series in ms.")
     parser.add_argument("--window_size", type=int, required=True, help="Size of the time series window in ms (e.g., 100 for 100ms).")
     parser.add_argument("--approach", type=str, required=True, choices=["time_series", "fft"], help="Approach: 'time_series' or 'fft'.")
+    parser.add_argument("--fuel_type", type=str, required=True, help="Approach: 'time_series' or 'fft'.")
     return parser.parse_args()
 
 
@@ -53,14 +54,15 @@ def notch_filter(pressure, PMT, samp_freq=10000, notch_freq=60.0, quality_factor
 def get_data(cache_file, filenames, stability_label_dict, window_size, duration_sample_ms):
     """Load and preprocess data, or load from cache if available."""
 
-    NUM_SEGMENTS_MIN = 120  # Minimum number of segments
-    NUM_SEGMENTS_MAX = 120  # Maximum number of segments
+    NUM_SEGMENTS_MIN = 400 #120  # Minimum number of segments
+    NUM_SEGMENTS_MAX = 400 #120  # Maximum number of segments
     NUM_SEGMENTS_INC = 1    # Segment increment
     data = []
     outputsALLr = []
-
+    output_name=[]
     SEGMENT_NUM= duration_sample_ms / window_size
     amount_of_samples=int(len(filenames)*SEGMENT_NUM)
+    print(amount_of_samples)
     total_points=120000
     amount_points_in_segment=int(total_points/SEGMENT_NUM)
     logging.info(f"The inputs_all shape should be: {amount_of_samples}, {amount_points_in_segment}, 2")
@@ -69,7 +71,8 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
         logging.info("Loading data from cache...")
         data = load(cache_file)
     else:
-        inputs_all = np.empty((12480, 1000, 2))  # Initialize array for input data
+        #np.empty((amount_of_samples, 1000, 2))
+        inputs_all = np.empty((amount_of_samples, 300, 2)) #inputs_all = np.empty((12480, 1000, 2))  # Initialize array for input data
         outputs_all = []
         k = 0
 
@@ -87,7 +90,8 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
                 first_line = f.readline().strip()
             
             expected_header = "time,p3,pmt"
-            if first_line == expected_header:
+            expected_header_2="time,p3,p5,pmt"
+            if first_line == expected_header or first_line == expected_header_2:
                 acoustic_data = pd.read_csv(file_path,names=['time', 'p3', 'pmt'], header=None, skiprows=1)
             else:    
                 print("Not expected header")
@@ -114,11 +118,12 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
                     k += 1
 
                     outputsALLr.append(label)
+                    output_name.append(file_name)
             logging.info(f"Processed {file_name} with {len(time)} time samples.")
         
         outputs_all = np.array(outputsALLr)
-        dump((inputs_all, outputs_all), cache_file)
-        data = (inputs_all, outputs_all)
+        dump((inputs_all, outputs_all, np.array(output_name)), cache_file)
+        data = (inputs_all, outputs_all, output_name)
         logging.info(f"Data saved to {cache_file}.")
     
     return data
@@ -127,7 +132,7 @@ def get_data(cache_file, filenames, stability_label_dict, window_size, duration_
 def get_cache_file_path(project_root, window_size, approach):
     """Generate the cache file path based on window size and approach."""
     # Create the folder path
-    folder_path = os.path.join(project_root,"data", approach, f"window_{window_size}ms")
+    folder_path = os.path.join(project_root,"data", approach,args.fuel_type, f"window_{window_size}ms")
     os.makedirs(folder_path, exist_ok=True)  # Create the folder if it doesn't exist
     
     # Generate the cache file path
@@ -161,7 +166,7 @@ if __name__ == "__main__":
     # Load and preprocess data
     stability_label_dict = load_stability_labels(args.stability_file)
     filenames = get_filenames(args.data_root)
-    inputsALL, outputsALL_label = get_data(cache_file, filenames, stability_label_dict, args.window_size, args.duration_sample_ms)
+    inputsALL, outputsALL_label,_ = get_data(cache_file, filenames, stability_label_dict, args.window_size, args.duration_sample_ms)
     
     # # Log the shapes of the processed data
     logging.info(f"Processed data shapes - Inputs: {inputsALL.shape}, Outputs: {outputsALL_label.shape}")
